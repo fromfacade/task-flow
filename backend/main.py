@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .database import engine, get_db
-from .database import hash_password
+from .security import hash_password
 
 models.Base.metadata.create_all(bind=engine)
 

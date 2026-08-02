@@ -3,7 +3,7 @@ from collections.abc import Generator
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 load_dotenv()
 
@@ -20,8 +20,7 @@ SessionLocal = sessionmaker(
   autocommit=False,
 )
 
-class Base(DeclarativeBase):
-  pass
+Base = declarative_base()
 
 def get_db() -> Generator[Session, None, None]:
   db = SessionLocal()
