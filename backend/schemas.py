@@ -14,3 +14,7 @@ class UserResponse(BaseModel):
   email: EmailStr
   is_verified: bool
   created_at: datetime
+
+class TokenResponse(BaseModel):
+  access_token: str
+  token_type: str

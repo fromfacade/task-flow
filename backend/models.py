@@ -23,7 +23,6 @@ class User(Base):
 
   password_hash: Mapped[str] = mapped_column(
     String(255),
-    default=False,
     nullable=False,
   )
 

@@ -1,17 +1,26 @@
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jwt.exceptions import InvalidTokenError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .database import engine, get_db
-from .security import hash_password
+from .security import (
+  hash_password,
+  create_access_token,
+  decode_access_token,
+  verify_password
+)
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 @app.get("/")
 def home():
@@ -67,3 +76,79 @@ def signup(
   db.refresh(new_user)
 
   return new_user
+
+@app.post(
+  "/login",
+  response_model=schemas.TokenResponse,
+)
+def login(
+  form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+  db: Annotated[Session, Depends(get_db)],
+):
+  #OAUTH2 calls this field "username".
+  #TaskFlow uses the user's email as their username
+  email = form_data.username.lower()
+
+  user = db.scalar(
+    select(models.User).where(
+      models.User.email == email
+    )
+  )
+
+  if user is None or not verify_password(
+    form_data.password,
+    user.password_hash,
+  ):
+    raise HTTPException(
+      status_code=status.HTTP_401_UNAUTHORIZED,
+      detail="Incorrect email or password",
+      headers={
+        "WWW-Authenticate": "Bearer"
+      },
+    )
+
+  access_token = create_access_token(
+    subject=str(user.id)
+  )
+
+  return schemas.TokenResponse(
+    access_token=access_token,
+    token_type="bearer",
+  )
+
+def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[Session, Depends(get_db)],
+) -> models.User:
+  credentials_error = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Could not validate credentials",
+    headers={
+      "WWW-Authenticate": "Bearer",
+    },
+  )
+
+  try:
+    user_id = int(decode_access_token(token))
+  except (InvalidTokenError, ValueError):
+    raise credentials_error
+
+  user = db.get(models.User, user_id)
+
+  if user is None:
+    raise credentials_error
+
+  return user
+
+
+@app.get(
+  "/users/me",
+  response_model=schemas.UserResponse,
+)
+def read_current_user(
+  current_user: Annotated[
+    models.User,
+    Depends(get_current_user),
+  ],
+):
+  return current_user
