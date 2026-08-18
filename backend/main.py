@@ -152,3 +152,76 @@ def read_current_user(
   ],
 ):
   return current_user
+
+@app.post(
+  "/jobs",
+  response_model=schemas.JobResponse,
+  status_code=status.HTTP_201_CREATED,
+)
+def create_job(
+  job_data: schemas.JobCreate,
+  current_user: Annotated[
+    models.User,
+    Depends(get_current_user),
+  ],
+  db: Annotated[Session, Depends(get_db)],
+):
+  new_job = models.Job(
+    user_id=current_user.id,
+    job_type=job_data.job_type,
+    payload=job_data.payload,
+    status="queued",
+  )
+
+  db.add(new_job)
+  db.commit()
+  db.refresh(new_job)
+
+  return new_job
+
+@app.get(
+  "/jobs",
+  response_model=list[schemas.JobResponse],
+)
+def get_jobs(
+  current_user: Annotated[
+    models.User,
+    Depends(get_current_user),
+  ],
+  db: Annotated[Session, Depends(get_db)],
+):
+  jobs = db.scalars(
+    select(models.Job)
+    .where(
+      models.Job.user_id == current_user.id
+    )
+    .order_by(models.Job.created_at.desc())
+  ).all()
+
+  return jobs
+
+@app.get(
+  "/jobs/{job_id}",
+  response_model=schemas.JobResponse,
+)
+def get_job(
+  job_id:int,
+  current_user:Annotated[
+    models.User,
+    Depends(get_current_user),
+  ],
+  db = Annotated[Session, Depends(get_db)],
+):
+  job = db.scalar(
+    select(models.Job).where(
+      models.Job.id == job_id,
+      models.Job.user_id == current_user.id,
+    )
+  )
+
+  if job is None:
+    raise HTTPException(
+      status_code=status.HTTP_404_NOT_FOUND,
+      detail="Job not found",
+    )
+  return job
