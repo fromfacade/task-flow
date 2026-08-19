@@ -87,7 +87,7 @@ class Job(Base):
 
   result: Mapped[dict[str, Any] | None] = mapped_column(
       JSON,
-      nullable=False,
+      nullable=True,
   )
 
   error: Mapped[str | None] = mapped_column(
@@ -104,7 +104,7 @@ class Job(Base):
   created_at: Mapped[datetime] = mapped_column(
     DateTime(timezone=True),
     server_default=func.now(),
-    nullable=False,
+    nullable=True,
   )
 
   started_at: Mapped[datetime | None] = mapped_column(

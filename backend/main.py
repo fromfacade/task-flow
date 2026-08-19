@@ -210,7 +210,7 @@ def get_job(
     models.User,
     Depends(get_current_user),
   ],
-  db = Annotated[Session, Depends(get_db)],
+  db: Annotated[Session, Depends(get_db)],
 ):
   job = db.scalar(
     select(models.Job).where(
