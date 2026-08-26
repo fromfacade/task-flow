@@ -1,5 +1,6 @@
 import logging
 import time
+import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -8,6 +9,7 @@ from sqlalchemy import select
 from .database import SessionLocal
 from .models import Job
 
+WORKER_ID = os.getpid()
 POLL_INTERVAL_SECONDS = 2
 RETRY_DELAY_SECONDS = 3
 MAX_ATTEMPTS = 3
@@ -44,6 +46,7 @@ def claim_next_job():
       select(Job)
       .where(Job.status == "queued")
       .order_by(Job.created_at.asc())
+      .with_for_update(skip_locked=True)
       .limit(1)
     )
 
@@ -61,7 +64,8 @@ def claim_next_job():
     db.commit()
 
     logger.info(
-      "Claimed job %s (%s)",
+      "Worker %s claimed job %s (%s)",
+      WORKER_ID,
       job_id,
       job_type,
     )
@@ -148,7 +152,10 @@ def fail_job(
     return False
 
 def run_worker():
-  logger.info("Taskflow worker started.")
+  logger.info(
+    "Taskflow worker %s started.",
+    WORKER_ID,
+  )
 
   while True:
     claimed_job = claim_next_job()
